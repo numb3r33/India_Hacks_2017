@@ -1,6 +1,7 @@
 from sklearn.model_selection import StratifiedKFold
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import log_loss
+from sklearn.metrics import roc_auc_score
 
 from tqdm import tqdm_notebook
 
@@ -9,7 +10,7 @@ def get_train_test_split(X, y, **params):
 
 	return X_train, X_test, y_train, y_test
 
-def cross_validation(X, y, model, seed):
+def cross_validation(X, y, model, metric_type, seed):
 	skf = StratifiedKFold(n_splits=3, random_state=seed)
 
 	scores = []
@@ -25,8 +26,12 @@ def cross_validation(X, y, model, seed):
 		model.fit(Xtr, ytr)
 
 		fold_preds = model.predict_proba(Xte)
-		fold_ll = log_loss(yte, fold_preds)
 
-		scores.append(fold_ll)
+		if metric_type == 'log_loss':
+			fold_score = log_loss(yte, fold_preds)
+		else:
+			fold_score = roc_auc_score(yte, fold_preds[:, 1])
+
+		scores.append(fold_score)
 
 	return scores
