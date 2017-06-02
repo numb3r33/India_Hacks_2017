@@ -82,3 +82,10 @@ def prepare_ohe_variables(data, features):
 		data = pd.concat((data, encode_ohe(data[f])), axis='columns')
 
 	return data
+
+
+def count_feature(feature):
+	return feature.str.replace('[:](\d+)', '').map(lambda x: len(x.split(',')))
+
+def num_seconds_watched(feature):
+	return feature.str.replace('.+[:]', '').map(lambda x: np.sum([int(z) for z in x.split(',')]))	
