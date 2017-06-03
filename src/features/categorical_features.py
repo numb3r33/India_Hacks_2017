@@ -1,6 +1,9 @@
 import pandas as pd
 import numpy as np
 import scipy as sp
+import gc
+
+from sklearn.feature_extraction import DictVectorizer
 
 def woe(train, test, y, features='all', information_value=False, inplace=False):
 	if len(set(y)) != 2:
@@ -89,3 +92,24 @@ def count_feature(feature):
 
 def num_seconds_watched(feature):
 	return feature.str.replace('.+[:]', '').map(lambda x: np.sum([int(z) for z in x.split(',')]))	
+
+
+def create_from_dict(data, feature):
+	"""
+	data    : Panadas Dataframe for train/test data
+	feature : Feature which we want to convert to ohe features
+	"""
+
+	train = data.loc[:, feature].map(lambda x: x.split(','))\
+						 .map(lambda x: dict((k.strip(), int(v.strip())) for k,v in 
+											  (item.split(':') for item in x)))
+		
+	dv    = DictVectorizer(sparse=False)
+	X     = pd.DataFrame(dv.fit_transform(train), columns=dv.get_feature_names())
+
+	del train
+	gc.collect()
+
+	X.columns = [feature + '_' + col for col in X.columns]
+	
+	return X
