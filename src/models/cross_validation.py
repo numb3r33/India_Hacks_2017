@@ -3,19 +3,17 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import log_loss
 from sklearn.metrics import roc_auc_score
 
-from tqdm import tqdm_notebook
-
 def get_train_test_split(X, y, **params):
 	X_train, X_test, y_train, y_test = train_test_split(X, y, **params)
 
 	return X_train, X_test, y_train, y_test
 
-def cross_validation(X, y, model, metric_type, seed):
+def cv_loop(X, y, model, metric_type, seed):
 	skf = StratifiedKFold(n_splits=3, random_state=seed)
 
 	scores = []
 
-	for (itr, ite) in tqdm_notebook(skf.split(X, y)):
+	for (itr, ite) in (skf.split(X, y)):
 		
 		Xtr = X.iloc[itr]
 		ytr = y.iloc[itr]
