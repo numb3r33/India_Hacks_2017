@@ -9,7 +9,7 @@ def get_train_test_split(X, y, **params):
 	return X_train, X_test, y_train, y_test
 
 def cv_loop(X, y, model, metric_type, seed):
-	skf = StratifiedKFold(n_splits=3, random_state=seed)
+	skf = StratifiedKFold(n_splits=10, random_state=seed)
 
 	scores = []
 
