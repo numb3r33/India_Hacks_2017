@@ -3,7 +3,7 @@ import numpy as np
 import gc
 
 from sklearn.metrics import log_loss
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, StratifiedKFold
 
 from hyperopt import hp
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
@@ -46,13 +46,10 @@ def load_files():
 	# 1. Create count variable for sign aspect ratio.
 	# 2. Create a boolean to check whether detected camera was facing either front or rear or not.
 
-	data['sign_aspect_ratio_count'] = data.groupby('SignAspectRatio')['SignAspectRatio'].transform(lambda x: len(x))
 	data['detected_camera_flag']    = data.DetectedCamera.isin([0, 1]).astype(np.int)
 
 
-	features = ['AngleOfSign', 'DetectedCamera', 'SignAspectRatio', 'sign_aspect_ratio_count',
-							  'detected_camera_flag'
-							 ]
+	features = ['AngleOfSign', 'DetectedCamera', 'detected_camera_flag']
 
 	X = data.loc[train_mask, features]
 	y = data.loc[train_mask, 'target'].map(target_map)
@@ -66,20 +63,39 @@ def score(params):
 	print('Training with params :')
 	print(params)
 
-	num_round = int(params['n_estimators'])
+	num_round           = int(params['n_estimators'])
 	params['max_depth'] = int(params['max_depth'])
 
 	del params['n_estimators']
 
-	dtrain = xgb.DMatrix(X_train, label=y_train)
-	dvalid = xgb.DMatrix(X_test, label=y_test)
-	# watchlist = [(dvalid, 'eval'), (dtrain, 'train')]
-	model = xgb.train(params, dtrain, num_round)
-	predictions = model.predict(dvalid).reshape((X_test.shape[0], 4))
-	score = log_loss(y_test, predictions)
-	print("\tScore {0}\n\n".format(score))
+	# 10-fold cross-validation scheme
+	skf       = StratifiedKFold(n_splits=10, shuffle=True, random_state=SEED)
+	cv_scores = []
 
-	return {'loss': score, 'status': STATUS_OK}
+	for index, (itr, ite) in enumerate(skf.split(X_train, y_train)):
+		print('Fold: {}'.format(index))
+
+		Xtr = X_train.iloc[itr]
+		ytr = y_train.iloc[itr]
+
+		Xte = X_train.iloc[ite]
+		yte = y_train.iloc[ite]
+
+
+		dtrain = xgb.DMatrix(Xtr, label=ytr)
+		dvalid = xgb.DMatrix(Xte, label=yte)
+		
+		# watchlist = [(dvalid, 'eval'), (dtrain, 'train')]
+		model       = xgb.train(params, dtrain, num_round)
+		predictions = model.predict(dvalid).reshape((Xte.shape[0], 4))
+		score_       = log_loss(yte, predictions)
+		print("\tScore {0}\n\n".format(score_))
+
+		cv_scores.append(score_)
+
+	print('Mean CV score: {}'.format(np.mean(cv_scores)))
+
+	return {'loss': np.mean(cv_scores), 'status': STATUS_OK}
 
 def optimize(trials):
 	space = {
